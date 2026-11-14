@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#172033">
+<link rel="manifest" href="manifest.json">
+<title>현장 업무 도우미</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color:#182235;background:#f3f5f8}
+*{box-sizing:border-box}body{margin:0;padding:0 0 28px}.wrap{max-width:760px;margin:auto;padding:18px}
+header{background:#172033;color:white;padding:22px 18px 26px;border-radius:0 0 22px 22px}
+header small{color:#c5cede}h1{font-size:23px;margin:5px 0 3px}.sub{color:#c5cede;font-size:13px}
+.card{background:white;border:1px solid #e4e8ef;border-radius:17px;padding:17px;margin-top:14px;box-shadow:0 3px 12px #1720330a}
+h2{font-size:17px;margin:0 0 13px}.compact-card{padding:12px 15px}.compact-head{min-height:28px}.compact-head h2{margin:0;font-size:15px}.compact-value{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:750}.compact-card.collapsed{padding:9px 14px}.compact-card.collapsed #shiftChoices,.compact-card.collapsed #deptChoices{display:none}.compact-card.collapsed .compact-head h2{font-size:13px;color:#687386}.compact-card.collapsed .smallbtn{padding:6px 9px}.muted{color:#687386;font-size:13px}.seg{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+button{font:inherit;border:0;border-radius:12px;padding:13px 14px;background:#e9edf4;color:#273449;font-weight:650;cursor:pointer}
+button.primary{background:#245fce;color:white}button.selected{background:#e5efff;color:#174fae;outline:2px solid #4c83df}
+button:active{transform:scale(.99)}.deptgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.taskgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.taskgrid button{font-size:14px;padding:13px 6px}.deptgrid button{padding:13px 5px;font-size:14px}.field{display:flex;gap:9px;align-items:center}
+input,select{width:100%;padding:12px;border:1px solid #d8dee8;border-radius:11px;font:inherit;background:white;color:#182235}
+label{display:block;font-size:13px;color:#586477;margin:10px 0 6px}
+.result{background:#f0f5ff;border-radius:13px;padding:15px;margin-top:12px}
+.big{font-size:27px;font-weight:800;color:#174fae;letter-spacing:-.5px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.smallbtn{padding:8px 10px;font-size:12px}.alarm{border:1px solid #e6eaf0;border-radius:12px;padding:12px;margin-top:9px}
+.alarm time{font-weight:800;font-size:19px}.tag{font-size:11px;color:#245fce;background:#eaf1ff;border-radius:20px;padding:4px 8px}
+.notice{font-size:12px;line-height:1.55;color:#657184;margin-top:10px}
+footer{text-align:center;color:#8791a1;font-size:11px;padding:22px 10px}
+@media(min-width:600px){.wrap{padding:22px}.deptgrid{grid-template-columns:repeat(3,1fr)}}
+.spec-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:9px 0 15px}
+.spec-quick button{min-height:45px;font-weight:700}
+.spec-quick button.selected-spec{background:#2563eb;color:white;border-color:#2563eb}
+.upcoming-panel{margin-top:14px;padding:12px;border:1px solid #93c5fd;border-radius:12px;background:rgba(59,130,246,.07)}
+</style>
+</head>
+<body>
+<header><div class="wrap" style="padding:0">
+<small>PRODUCTION WORK ASSISTANT · v3.6</small>
+<h1>현장 업무 도우미</h1>
+<div class="sub">근무 형태 · 부서 선택 · 차량 공백 계산 · 사용자 지정 알람</div>
+</div></header>
+<main class="wrap">
+<section class="card compact-card" id="deptCard">
+<div class="row compact-head">
+<h2>① 부서 선택</h2>
+<div class="compact-value"><span id="deptSummary">도어반</span><button class="smallbtn" id="deptToggle" onclick="toggleSection('dept')">변경</button></div>
+</div>
+<div id="deptChoices" class="deptgrid"></div>
+<div id="taskCard" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #ddd">
+<div class="row" style="align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><div style="min-width:0"><strong>작업 종류</strong><span id="taskSummary" class="muted" style="margin-left:8px;font-size:13px"></span></div><button class="smallbtn" type="button" id="taskToggle" onclick="toggleTaskChoices()">변경</button></div><div class="taskgrid" id="taskChoices" style="display:none"></div>
+<div id="taskMemoPanel" style="display:none;margin-top:12px">
+<label for="taskMemo">작업 메모 · <span id="taskMemoTitle"></span></label>
+<textarea id="taskMemo" rows="3" placeholder="작업 순서, 주의사항 등을 간단히 적으세요." oninput="saveTaskMemo();resizeTaskMemo()" style="width:100%;box-sizing:border-box;min-height:74px"></textarea>
+<div class="muted">작업별로 자동 저장됩니다.</div>
+</div>
+</div>
+</section>
+<section class="card" id="commitCard">
+<h2>② 커밋넘버 실시간 사양 추적</h2>
+<div class="field" style="align-items:center;justify-content:space-between;gap:8px;margin:8px 0 12px;padding:10px 12px;border:1px solid #93c5fd;border-radius:10px">
+<div style="min-width:0"><div class="muted" style="font-size:12px">현재 사양</div><strong id="currentSpecSummary" style="font-size:16px;overflow-wrap:anywhere">미설정 · 미설정 · 미설정</strong></div>
+<button type="button" onclick="toggleBaseSpecEditor()" id="baseSpecEditButton" style="flex-shrink:0">수정</button>
+</div>
+<div class="upcoming-panel" id="baseSpecEditor" style="display:none"><h3 style="font-size:15px;margin:0 0 8px">현재 사양 설정</h3><div class="muted">처음 사양을 지정하면 등록한 변경 커밋넘버 도달 시 자동으로 바뀝니다.</div><div class="field" style="flex-wrap:wrap"><div style="flex:1;min-width:85px"><label for="baseSide">방향</label><select id="baseSide" onchange="saveBaseSpecs()"><option value="">미설정</option><option>RH</option><option>LH</option></select></div><div style="flex:1;min-width:85px"><label for="baseModel">차종</label><select id="baseModel" onchange="saveBaseSpecs()"><option value="">미설정</option><option>SV</option><option>CT</option></select></div><div style="flex:1;min-width:85px"><label for="baseMarket">출고 구분</label><select id="baseMarket" onchange="saveBaseSpecs()"><option value="">미설정</option><option>내수</option><option>수출</option></select></div></div></div>
+<div class="result"><div class="field" style="align-items:center;justify-content:space-between;gap:8px"><div><div class="muted">현재 커밋넘버</div><div class="big" id="commitDisplay">미설정</div></div><button type="button" onclick="toggleCommitEditor()" id="commitEditButton">수정</button></div>
+<div id="commitEditor" style="display:none;margin:10px 0;padding:10px;border:1px solid #ddd;border-radius:10px"><label for="commitCurrent">커밋넘버 입력 / 보정</label><div class="field"><input id="commitCurrent" type="number" min="0" step="1" inputmode="numeric" placeholder="예: 120"><button onclick="setCommitCurrent()">적용</button></div></div>
+<div class="field" style="align-items:baseline;gap:7px;flex-wrap:wrap"><span class="muted" id="commitStatus">추적 시작 전</span><span id="commitPauseHint" style="font-size:11px;color:#64748b"></span></div><div class="field" style="margin-top:10px;flex-wrap:wrap"><button id="commitToggle" class="primary" onclick="toggleCommit()">추적 시작</button><button onclick="moveCommit(-1)">−1대</button><button onclick="moveCommit(1)">+1대</button><button onclick="resetCommitClock()">90초 초기화</button></div></div>
+<div class="upcoming-panel"><h3 style="font-size:15px;margin:0 0 6px">다가오는 사양 변경 · 전체</h3><div id="specUpcoming" class="result"></div></div>
+<h3 style="font-size:15px;margin:18px 0 6px">사양 구간 등록</h3>
+<label>다음 사양 · 각 구분에서 하나씩 선택</label>
+<div id="specQuickButtons" class="spec-quick">
+<button type="button" data-cat="side" data-val="RH" onclick="selectSpec('side','RH')">RH</button>
+<button type="button" data-cat="model" data-val="SV" onclick="selectSpec('model','SV')">SV</button>
+<button type="button" data-cat="market" data-val="내수" onclick="selectSpec('market','내수')">내수</button>
+<button type="button" data-cat="side" data-val="LH" onclick="selectSpec('side','LH')">LH</button>
+<button type="button" data-cat="model" data-val="CT" onclick="selectSpec('model','CT')">CT</button>
+<button type="button" data-cat="market" data-val="수출" onclick="selectSpec('market','수출')">수출</button>
+</div><div class="muted" id="selectedSpecSummary">RH · SV · 내수</div>
+<div class="field"><div style="flex:1"><label for="specStart">시작 커밋넘버</label><input id="specStart" type="number" min="0" step="1" inputmode="numeric"></div><div style="flex:1"><label for="specCount">연속 대수</label><input id="specCount" type="number" min="1" step="1" inputmode="numeric" value="30"></div></div>
+
+<div class="field" style="margin-top:12px"><button id="specAddButton" class="primary" onclick="addSpec()" style="flex:1">3가지 사양 함께 등록</button><button onclick="fillNextStart()">다음 시작번호</button></div>
+<div id="specList"></div>
+</section>
+<section class="card">
+<h2>③ 교대 및 작업 알람</h2>
+<div class="compact-card" id="shiftCard" style="margin:12px 0;padding:12px;border:1px solid var(--line,#ddd);border-radius:12px">
+<div class="row compact-head">
+<h3 style="margin:0">근무 형태</h3>
+<div class="compact-value"><span id="shiftSummary">☀️ 주간</span><button class="smallbtn" id="shiftToggle" onclick="toggleSection('shift')">변경</button></div>
+</div>
+<div id="shiftChoices" class="seg">
+<button id="dayBtn" class="selected" onclick="setShift('주간')">☀️ 주간</button>
+<button id="nightBtn" onclick="setShift('야간')">🌙 야간</button>
+</div>
+</div>
+
+<div class="muted">주간과 야간의 시작 시각과 알람을 각각 저장합니다.</div>
+<div class="muted" style="margin-top:10px">등록된 근무시간표에 맞춰 휴식·중식 이후 알람을 새로 계산합니다.</div>
+<label for="alarmKind">알람 종류</label>
+<select id="alarmKind" onchange="renderAlarmPreview()">
+<option value="half">30분마다 교대</option>
+<option value="hour">1시간마다 교대</option>
+<option value="under">언더커버 작업 (매시간 10분 전)</option>
+<option value="fender">휀다가니쉬 작업 (40분 주기, 3분 전)</option>
+</select>
+<div id="leadBox"><label for="lead">교대 알람 사전 알림</label><select id="lead" onchange="renderAlarmPreview()"><option value="5">5분 전</option><option value="2">2분 전</option></select></div>
+<div class="result"><div class="muted">예상 알람 시각</div><div id="alarmPreview" style="font-weight:700;margin-top:6px"></div></div>
+<div class="field" style="margin-top:12px"><button class="primary" style="flex:1" onclick="addRecurringAlarm()">현재 근무에 알람 추가</button><button onclick="enableNotifications()">알림 허용</button></div>
+<div class="notice">선택한 근무(주간/야간)에만 알람이 작동합니다. 반복 알람은 삭제할 때까지 유지됩니다. 웹페이지가 열려 있어야 확인할 수 있으며, 화면 잠금·절전·앱 종료 시 알람이 울리지 않을 수 있습니다. 정확한 백그라운드 알람은 별도 네이티브 앱 기능이 필요합니다.</div>
+<div id="alarmList"></div>
+</section>
+<section class="card">
+<h2>④ 차량 공백 시간 계산기</h2>
+<div class="muted">차량 1대당 소요 시간을 기준으로 예상 공백을 계산합니다.</div>
+<label for="cars">빈 차량 대수</label>
+<input id="cars" type="number" min="0" step="1" value="0" inputmode="numeric">
+<label for="cycle">차량 1대당 소요 시간 (초)</label>
+<input id="cycle" type="number" min="1" step="1" value="90" inputmode="numeric">
+<div class="result"><div class="muted">예상 공백 시간</div><div class="big" id="gapResult">0분 0초</div><div class="muted" id="gapFormula">0대 × 90초</div></div>
+</section>
+<footer>현장 업무 도우미 · v3.6<br>업무별 상세정보는 아직 포함하지 않았습니다.</footer>
+</main>
+<script>
+const departments=['도어반','하체반','1의장','2의장','3의장','1조립','2조립','3조립','4조립'];
+let shift=localStorage.getItem('shift')||'주간';
+let dept=localStorage.getItem('dept')||'도어반';
+let task=localStorage.getItem('task::'+dept)||(dept==='1조립'?localStorage.getItem('assemblyTask')||'':'');
+let taskMemos={};try{taskMemos=JSON.parse(localStorage.getItem('taskMemos')||'{}')}catch(e){}
+const assemblyTasks=['FEM+실사이드','냉각수모듈','앞범퍼','휀다가니쉬','개별'];
+const assembly2Tasks=['와셔액주입','브레이크액+부동액','카울탑','테일게이트 하단','테일게이트 상단','냉매탈거','프론트 드렁크','앞 언더커버','사이드 언더커버','휠하우스 스크류'];
+let alarms=JSON.parse(localStorage.getItem('alarms')||'[]');
+const workBlocks={
+ '주간':[['06:50','08:50'],['09:00','11:00'],['11:40','13:40'],['13:50','15:30']],
+ '야간':[['15:40','17:40'],['17:50','19:50'],['20:30','22:30'],['22:40','00:20']]
+};
+const alarmTypes={half:{label:'30분마다 교대',interval:30},hour:{label:'1시간마다 교대',interval:60},under:{label:'언더커버 작업',interval:60,lead:10},fender:{label:'휀다가니쉬 작업',interval:40,lead:3}};
+let shiftExpanded=false, deptExpanded=false, taskExpanded=false;
+const $=id=>document.getElementById(id);
+function renderDepartments(){
+ $('deptChoices').innerHTML='';
+ departments.forEach(d=>{const b=document.createElement('button');b.textContent=d;b.className=d===dept?'selected':'';b.onclick=()=>{dept=d;task=localStorage.getItem('task::'+dept)||(dept==='1조립'?localStorage.getItem('assemblyTask')||'':'');localStorage.setItem('dept',dept);renderDepartments();taskExpanded=false;renderTasks();deptExpanded=false;applySectionState()};$('deptChoices').appendChild(b)});
+ $('deptSummary').textContent=dept;
+}
+function resizeTaskMemo(){const el=$('taskMemo');if(!el)return;el.style.height='auto';el.style.height=Math.max(74,el.scrollHeight+2)+'px';}
+function saveTaskMemo(){
+ if(!task)return;
+ taskMemos[dept+'::'+task]=$('taskMemo').value;
+ localStorage.setItem('taskMemos',JSON.stringify(taskMemos));
+}
+function toggleTaskChoices(){taskExpanded=!taskExpanded;renderTasks();}
+function renderTasks(){
+ $('taskCard').style.display=(dept==='1조립'||dept==='2조립')?'block':'none';
+ const root=$('taskChoices');root.innerHTML='';root.style.display=taskExpanded?'grid':'none';$('taskToggle').textContent=taskExpanded?'닫기':'변경';$('taskSummary').textContent=task||'미선택';
+ if(dept!=='1조립'&&dept!=='2조립')return;
+ (dept==='1조립'?assemblyTasks:assembly2Tasks).forEach(t=>{
+  const b=document.createElement('button');b.textContent=t;b.className=t===task?'selected':'';
+  b.onclick=()=>{task=t;localStorage.setItem('task::'+dept,task);if(dept==='1조립')localStorage.setItem('assemblyTask',task);taskExpanded=false;renderTasks()};
+  root.appendChild(b);
+ });
+ $('taskMemoPanel').style.display=task?'block':'none';
+ if(task){$('taskMemoTitle').textContent=task;$('taskMemo').value=taskMemos[dept+'::'+task]||'';requestAnimationFrame(resizeTaskMemo);}
+}
+function setShift(s){shift=s;localStorage.setItem('shift',s);syncNativeAlarms();$('shiftSummary').textContent=(s==='주간'?'☀️ ':'🌙 ')+s;$('dayBtn').classList.toggle('selected',s==='주간');$('nightBtn').classList.toggle('selected',s==='야간');shiftExpanded=false;applySectionState();renderAlarmSettings();renderAlarms()}
+function toggleSection(which){if(which==='shift')shiftExpanded=!shiftExpanded;else deptExpanded=!deptExpanded;applySectionState()}
+function applySectionState(){
+ $('shiftCard').classList.toggle('collapsed',!shiftExpanded);
+ $('deptCard').classList.toggle('collapsed',!deptExpanded);
+ $('shiftToggle').textContent=shiftExpanded?'닫기':'변경';
+ $('deptToggle').textContent=deptExpanded?'닫기':'변경';
+}
+function calc(){let n=Math.max(0,Math.floor(Number($('cars').value)||0));let sec=Math.max(1,Math.floor(Number($('cycle').value)||90))*n;let m=Math.floor(sec/60),s=sec%60;$('gapResult').textContent=`${m}분 ${s}초`;$('gapFormula').textContent=`${n}대 × ${Math.max(1,Math.floor(Number($('cycle').value)||90))}초`}
+$('cars').addEventListener('input',calc);$('cycle').addEventListener('input',calc);
+function save(){localStorage.setItem('alarms',JSON.stringify(alarms));syncNativeAlarms()}
+function minutesOf(t){const [h,m]=t.split(':').map(Number);return h*60+m}
+function clock(n){n=((n%1440)+1440)%1440;return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+function save(){localStorage.setItem('alarms',JSON.stringify(alarms));syncNativeAlarms()}
+function leadFor(kind,lead){return kind==='half'||kind==='hour'?Number(lead||5):alarmTypes[kind].lead}
+function schedule(kind,sh,lead){
+ const k=alarmTypes[kind];if(!k)return [];
+ let out=[];
+ workBlocks[sh].forEach(([from,to],idx)=>{
+   const start=minutesOf(from);let end=minutesOf(to);if(end<=start)end+=1440;
+   const interval=(idx===3&&(kind==='half'||kind==='hour'))?45:k.interval;
+   if(idx===3&&kind==='under'&&sh==='주간'){out.push(minutesOf('14:30'),minutesOf('15:21'));return;}
+   for(let target=start+interval;target<=end;target+=interval){
+     const alarm=target-leadFor(kind,lead);
+     if(alarm>=start&&alarm<end)out.push(alarm);
+   }
+ });
+ return out;
+}
+function renderAlarmSettings(){renderAlarmPreview()}
+function renderAlarmPreview(){
+ const kind=$('alarmKind').value;
+ $('leadBox').style.display=(kind==='half'||kind==='hour')?'block':'none';
+ const times=schedule(kind,shift,$('lead').value);
+ $('alarmPreview').textContent=times.length?times.map(clock).join(' · '):'예정된 알람 없음';
+}
+function addRecurringAlarm(){
+ const kind=$('alarmKind').value;
+ const lead=leadFor(kind,$('lead').value);
+ if(alarms.some(a=>a.kind===kind&&a.shift===shift)){
+   if(!confirm('이미 등록된 알람입니다. 새 설정으로 변경할까요?'))return;
+   alarms=alarms.filter(a=>!(a.kind===kind&&a.shift===shift));
+ }
+ alarms.push({id:Date.now()+Math.random(),kind,shift,lead,lastFired:''});save();renderAlarms();renderAlarmPreview();
+}
+function removeAlarm(id){alarms=alarms.filter(a=>a.id!==id);save();renderAlarms()}
+function renderAlarms(){
+ const root=$('alarmList');root.innerHTML='';const visible=alarms.filter(a=>a.kind&&a.shift===shift);
+ if(!visible.length){root.innerHTML='<p class="muted">현재 근무에 등록된 알람이 없습니다.</p>';return}
+ visible.forEach(a=>{
+ const k=alarmTypes[a.kind];if(!k)return;
+ const d=document.createElement('div');d.className='alarm';const top=document.createElement('div');top.className='row';const info=document.createElement('div');
+ const name=document.createElement('strong');name.textContent=k.label;
+ const desc=document.createElement('div');desc.className='muted';desc.textContent=leadFor(a.kind,a.lead)+'분 전 · '+schedule(a.kind,a.shift,a.lead).map(clock).join(', ');
+ info.append(name,desc);const del=document.createElement('button');del.className='smallbtn';del.textContent='삭제';del.onclick=()=>removeAlarm(a.id);top.append(info,del);d.append(top);root.append(d);
+ });
+}
+function syncNativeAlarms(){if(window.AndroidAlarm){try{AndroidAlarm.sync(JSON.stringify({shift,alarms}));}catch(e){console.error(e)}}}
+async function enableNotifications(){
+ if(window.AndroidAlarm){AndroidAlarm.requestPermissions();return;}
+ if(!('Notification' in window)){alert('이 브라우저는 알림을 지원하지 않습니다.');return}
+ const p=await Notification.requestPermission();alert(p==='granted'?'알림이 허용되었습니다.':'브라우저 설정에서 알림을 허용해 주세요.')
+}
+function checkAlarms(){if(window.AndroidAlarm)return;
+ const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+ const dateKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+ alarms.forEach(a=>{
+ if(!a.kind||a.shift!==shift)return;
+ if(!schedule(a.kind,a.shift,a.lead).some(t=>((t%1440)+1440)%1440===nowMin))return;
+ const fireKey=dateKey+'-'+nowMin;if(a.lastFired===fireKey)return;a.lastFired=fireKey;save();
+ const label=alarmTypes[a.kind].label;
+ if('Notification'in window&&Notification.permission==='granted'){new Notification(label,{body:a.shift+' · '+clock(nowMin),tag:String(a.id)})}
+ else{alert('알람: '+label+' ('+a.shift+')')}
+ });
+}
+
+// 커밋넘버 추적: 저장된 기준 번호와 경과 시간으로 진행량 계산
+const specLabels={side:'방향',model:'차종',market:'출고 구분'};
+const specOptions={side:['RH','LH'],model:['SV','CT'],market:['내수','수출']};
+let baseSpecs={side:'',model:'',market:''};try{const v=JSON.parse(localStorage.getItem('commitBaseSpecs')||'{}');for(const k of ['side','model','market'])if(specOptions[k].includes(v[k]))baseSpecs[k]=v[k];}catch(e){}
+function toggleBaseSpecEditor(){
+ const panel=$('baseSpecEditor');
+ const opening=panel.style.display==='none';
+ panel.style.display=opening?'block':'none';
+ $('baseSpecEditButton').textContent=opening?'닫기':'수정';
+ if(opening)panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function effectiveSpec(category,n){
+ if(n===null)return baseSpecs[category];
+ const applied=specs.filter(x=>x.cat===category&&x.start<=n).sort((a,b)=>a.start-b.start).at(-1);
+ return applied?applied.val:baseSpecs[category];
+}
+function saveBaseSpecs(){baseSpecs={side:$('baseSide').value,model:$('baseModel').value,market:$('baseMarket').value};localStorage.setItem('commitBaseSpecs',JSON.stringify(baseSpecs));renderCommit();}
+let specs=[];let commitState={current:null,running:false,anchor:Date.now(),remainder:0};
+try{const x=JSON.parse(localStorage.getItem('commitSpecs')||'[]');if(Array.isArray(x))specs=x;}catch(e){}
+try{const x=JSON.parse(localStorage.getItem('commitState')||'{}');if(x&&typeof x==='object')commitState={...commitState,...x};}catch(e){}
+function saveCommit(){localStorage.setItem('commitSpecs',JSON.stringify(specs));localStorage.setItem('commitState',JSON.stringify(commitState));}
+function workMillisecondsBetween(start,end){
+ if(end<=start)return 0;
+ const blocks=workBlocks[shift],day=86400000;
+ const midnight=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
+ let total=0;
+ // Include previous calendar day because night shift's final block crosses midnight.
+ for(let d=midnight(start)-day;d<=midnight(end);){
+  for(const [from,to] of blocks){
+   const [fh,fm]=from.split(':').map(Number),[th,tm]=to.split(':').map(Number);
+   const a=new Date(d);a.setHours(fh,fm,0,0);
+   const b=new Date(d);b.setHours(th,tm,0,0);
+   if(b<=a)b.setDate(b.getDate()+1);
+   total+=Math.max(0,Math.min(end,b.getTime())-Math.max(start,a.getTime()));
+  }
+  const next=new Date(d);next.setDate(next.getDate()+1);d=next.getTime();
+ }
+ return total;
+}
+function commitElapsed(){return Math.max(0,workMillisecondsBetween(commitState.anchor,Date.now())+commitState.remainder)}
+function isWorkTime(){return workMillisecondsBetween(Date.now()-1000,Date.now())>0}
+function currentCommit(){if(!Number.isSafeInteger(commitState.current))return null;return commitState.current+(commitState.running?Math.max(0,Math.floor(commitElapsed()/90000)):0);}
+function toggleCommitEditor(){const panel=$('commitEditor');const opening=panel.style.display==='none';panel.style.display=opening?'block':'none';$('commitEditButton').textContent=opening?'닫기':'수정';if(opening){$('commitCurrent').value=currentCommit()??'';}}
+function setCommitCurrent(){const n=Number($('commitCurrent').value);if(!Number.isSafeInteger(n)||n<0||$('commitCurrent').value.trim()===''){alert('올바른 커밋넘버를 입력해 주세요.');return;}commitState={current:n,running:commitState.running,anchor:Date.now(),remainder:0};saveCommit();$('commitEditor').style.display='none';$('commitEditButton').textContent='수정';renderCommit();}
+function toggleCommit(){if(currentCommit()===null){alert('현재 커밋넘버를 먼저 설정해 주세요.');return;}if(commitState.running){const elapsed=commitElapsed();commitState.current+=Math.floor(elapsed/90000);commitState.remainder=elapsed%90000;commitState.running=false;}else{commitState.anchor=Date.now();commitState.running=true;}saveCommit();renderCommit();}
+function moveCommit(delta){const n=currentCommit();if(n===null)return;commitState.current=Math.max(0,n+delta);commitState.anchor=Date.now();commitState.remainder=0;saveCommit();renderCommit();}
+function resetCommitClock(){const n=currentCommit();if(n===null)return;commitState.current=n;commitState.anchor=Date.now();commitState.remainder=0;saveCommit();renderCommit();}
+let selectedSpecs={side:'RH',model:'SV',market:'내수'};
+let editingSpecGroup=null;
+function groupedSpecs(){
+ const groups=new Map();
+ for(const x of specs){const key=x.start+'|'+x.count; if(!groups.has(key))groups.set(key,{start:x.start,count:x.count,items:[]});groups.get(key).items.push(x);}
+ return [...groups.values()].sort((a,b)=>a.start-b.start);
+}
+function fillNextStart(){
+ const rows=specs.filter(x=>!editingSpecGroup||!editingSpecGroup.includes(x.id));
+ $('specStart').value=rows.length?Math.max(...rows.map(x=>x.start+x.count)):(currentCommit()??'');
+}
+function addSpec(){
+ const start=Number($('specStart').value),count=Number($('specCount').value);
+ if(!Number.isSafeInteger(start)||start<0||$('specStart').value.trim()===''||!Number.isSafeInteger(count)||count<1){alert('시작 커밋넘버와 연속 대수를 확인해 주세요.');return;}
+ const chosen=Object.entries(selectedSpecs);
+ if(specs.some(x=>!editingSpecGroup?.includes(x.id)&&chosen.some(([cat])=>x.cat===cat)&&start<x.start+x.count&&x.start<start+count)){alert('겹치는 커밋넘버 구간이 있습니다. 기존 구간을 수정하거나 삭제해 주세요.');return;}
+ if(editingSpecGroup)specs=specs.filter(x=>!editingSpecGroup.includes(x.id));
+ chosen.forEach(([cat,val])=>specs.push({id:Date.now()+Math.random(),cat,start,count,val}));
+ editingSpecGroup=null;$('specAddButton').textContent='3가지 사양 함께 등록';
+ specs.sort((a,b)=>a.start-b.start);saveCommit();renderCommit();fillNextStart();
+}
+function deleteSpecGroup(ids){if(!confirm('이 사양 구간 전체를 삭제할까요?'))return;specs=specs.filter(x=>!ids.includes(x.id));saveCommit();renderCommit();}
+function editSpecGroup(group){
+ editingSpecGroup=group.items.map(x=>x.id);
+ for(const x of group.items)selectedSpecs[x.cat]=x.val;
+ selectSpec('side',selectedSpecs.side);
+ $('specStart').value=group.start;$('specCount').value=group.count;
+ $('specAddButton').textContent='사양 구간 수정 저장';
+}
+function selectSpec(cat,val){selectedSpecs[cat]=val;
+ document.querySelectorAll('#specQuickButtons button').forEach(b=>{const selected=selectedSpecs[b.dataset.cat]===b.dataset.val;b.classList.toggle('selected-spec',selected);b.setAttribute('aria-pressed',String(selected));});
+ $('selectedSpecSummary').textContent=['side','model','market'].map(k=>selectedSpecs[k]).join(' · ');
+}
+function scheduledPauseHint(){
+ const now=Date.now(), day=86400000;
+ const midnight=t=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
+ const pauses=[];
+ for(let dayStart=midnight(now)-day;dayStart<=midnight(now)+day;dayStart+=day){
+  const blocks=workBlocks[shift].map(([from,to])=>{
+   const [fh,fm]=from.split(':').map(Number),[th,tm]=to.split(':').map(Number);
+   const a=new Date(dayStart);a.setHours(fh,fm,0,0);
+   const b=new Date(dayStart);b.setHours(th,tm,0,0);
+   if(b<=a)b.setDate(b.getDate()+1);
+   return [a.getTime(),b.getTime()];
+  });
+  for(let i=0;i<blocks.length-1;i++){
+   const start=blocks[i][1],end=blocks[i+1][0];
+   if(end>start&&end-start<=60*60000)pauses.push({start,end});
+  }
+ }
+ const fmt=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+ const active=pauses.find(p=>p.start<=now&&now<p.end);
+ if(active)return fmt(active.start)+'부터 '+Math.round((active.end-active.start)/60000)+'분간 정지 · '+fmt(active.end)+' 재개';
+ const next=pauses.filter(p=>p.start>now).sort((a,b)=>a.start-b.start)[0];
+ return next?fmt(next.start)+'부터 '+Math.round((next.end-next.start)/60000)+'분간 정지':'근무표상 다음 휴식 없음';
+}
+function renderCommit(){
+ const n=currentCommit();$('currentSpecSummary').textContent=['side','model','market'].map(k=>effectiveSpec(k,n)||'미설정').join(' · ');$('commitDisplay').textContent=n===null?'미설정':n+'번';$('commitToggle').textContent=commitState.running?'일시정지':'추적 시작';let remaining=90;if(commitState.running)remaining=Math.max(1,Math.ceil((90000-commitElapsed()%90000)/1000));else remaining=Math.max(1,Math.ceil((90000-commitState.remainder)/1000));$('commitStatus').textContent=n===null?'추적 시작 전':(commitState.running?(isWorkTime()?'추적 중':'휴식 시간 · 자동 정지'):'일시정지')+' · 다음 차량까지 약 '+remaining+'초';$('commitPauseHint').textContent=n===null?'':scheduledPauseHint();
+ const root=$('specList');root.innerHTML='';const groups=groupedSpecs();
+ if(!groups.length)root.innerHTML='<p class="muted">등록된 구간이 없습니다.</p>';
+ groups.forEach(g=>{
+  const d=document.createElement('div');d.className='alarm';
+  const line=document.createElement('div');line.className='row';
+  const t=document.createElement('div');const a=document.createElement('strong');
+  const values=Object.fromEntries(g.items.map(x=>[x.cat,x.val]));
+  a.textContent=g.start+'~'+(g.start+g.count-1)+'번 · '+['side','model','market'].map(k=>values[k]||'미설정').join(' · ')+' · '+g.count+'대';
+  const b=document.createElement('div');b.className='muted';
+  b.textContent=n===null?'커밋넘버 미설정':n>g.start+g.count-1?'지난 구간':n<g.start?'시작까지 '+(g.start-n)+'대':'현재 구간 · 종료까지 '+(g.start+g.count-n)+'대';
+  t.append(a,b);const actions=document.createElement('div');actions.className='field';
+  const e=document.createElement('button');e.className='smallbtn';e.textContent='수정';e.onclick=()=>editSpecGroup(g);
+  const del=document.createElement('button');del.className='smallbtn';del.textContent='삭제';del.onclick=()=>deleteSpecGroup(g.items.map(x=>x.id));
+  actions.append(e,del);line.append(t,actions);d.append(line);root.append(d);
+ });
+ const upcoming=$('specUpcoming');upcoming.innerHTML='';if(n===null){upcoming.textContent='현재 커밋넘버를 설정하면 변경 예정이 표시됩니다.';return;}
+ for(const category of ['side','model','market']){const list=specs.filter(x=>x.cat===category).sort((a,b)=>a.start-b.start);const applied=list.filter(x=>x.start<=n).at(-1);const currentValue=applied?applied.val:baseSpecs[category];const next=list.find(x=>x.start>n);const d=document.createElement('div');d.style.padding='7px 0';const title=document.createElement('strong');title.textContent=specLabels[category]+': '+(currentValue||'미설정');const info=document.createElement('div');info.className='muted';info.textContent=next?next.start+'번부터 '+next.val+' · 앞으로 '+(next.start-n)+'대':'다음 변경 미등록';d.append(title,info);upcoming.append(d);}
+}
+$('baseSide').value=baseSpecs.side;$('baseModel').value=baseSpecs.model;$('baseMarket').value=baseSpecs.market;selectSpec('side','RH');setInterval(()=>{renderCommit();if(commitState.running)saveCommit()},1000);
+
+renderDepartments();renderTasks();setShift(shift);deptExpanded=false;applySectionState();calc();renderAlarmSettings();renderAlarms();setInterval(checkAlarms,15000);
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+<script>window.addEventListener('load',()=>setTimeout(syncNativeAlarms,400));</script></body></html>
